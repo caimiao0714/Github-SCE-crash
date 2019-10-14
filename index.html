@@ -10,11 +10,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<meta name="author" content="Miao Cai" />
+<meta name="author" content="Anonymized for peer-review" />
 
-<meta name="date" content="2019-09-25" />
+<meta name="date" content="2019-10-14" />
 
-<title>Supplemental Materials - Crash and SCEs among truck drivers</title>
+<title>Supplemental Materials</title>
 
 
 
@@ -301,22 +301,28 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 
 
 
-<h1 class="title toc-ignore">Supplemental Materials - Crash and SCEs among truck drivers</h1>
-<h4 class="author">Miao Cai</h4>
-<h4 class="date">2019-09-25</h4>
+<h1 class="title toc-ignore">Supplemental Materials</h1>
+<h3 class="subtitle"><div class="line-block">The association between crashes and safety-critical events:<br />
+synthesized evidence from crash reports and naturalistic driving data among commercial truck drivers.</div></h3>
+<h4 class="author">Anonymized for peer-review</h4>
+<h4 class="date">2019-10-14</h4>
 
 
 <div id="TOC">
 <ul>
-<li><a href="#h1-header"><span class="toc-section-number">1</span> H1 Header</a><ul>
-<li><a href="#r-markdown"><span class="toc-section-number">1.1</span> R Markdown</a></li>
-<li><a href="#including-plots"><span class="toc-section-number">1.2</span> Including Plots</a></li>
+<li><a href="#data-description"><span class="toc-section-number">1</span> Data description</a><ul>
+<li><a href="#original-ping-data"><span class="toc-section-number">1.1</span> Original ping data</a></li>
+<li><a href="#aggregate-ping-data-into-trips"><span class="toc-section-number">1.2</span> Aggregate ping data into trips</a></li>
+</ul></li>
+<li><a href="#statistical-modeling"><span class="toc-section-number">2</span> Statistical modeling</a><ul>
+<li><a href="#negative-binomial-model"><span class="toc-section-number">2.1</span> Negative binomial model</a></li>
+<li><a href="#bayesian-negative-binomial-regression-using-rstanarm"><span class="toc-section-number">2.2</span> Bayesian Negative binomial regression using <code>rstanarm</code></a></li>
+<li><a href="#model-comparison-and-diagnostics-using-loo"><span class="toc-section-number">2.3</span> Model comparison and diagnostics using <code>loo</code></a></li>
 </ul></li>
 </ul>
 </div>
 
 <style type="text/css">
-
 h1.title {
   font-size: 20px;
 }
@@ -326,29 +332,136 @@ h1 { /* Header 1 */
 h2 { /* Header 2 */
     font-size: 15px;
 }
-
 </style>
-<div id="h1-header" class="section level1">
-<h1><span class="header-section-number">1</span> H1 Header</h1>
-<p>Manuscript title: The association between crashes and safety-critical events: synthesized evidence from crash reports and naturalistic driving data among commercial truck drivers.</p>
-<div id="r-markdown" class="section level2">
-<h2><span class="header-section-number">1.1</span> R Markdown</h2>
-<p>This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <a href="http://rmarkdown.rstudio.com" class="uri">http://rmarkdown.rstudio.com</a>.</p>
-<p>When you click the <strong>Knit</strong> button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">summary</span>(cars)</a></code></pre></div>
-<pre><code>##      speed           dist       
-##  Min.   : 4.0   Min.   :  2.00  
-##  1st Qu.:12.0   1st Qu.: 26.00  
-##  Median :15.0   Median : 36.00  
-##  Mean   :15.4   Mean   : 42.98  
-##  3rd Qu.:19.0   3rd Qu.: 56.00  
-##  Max.   :25.0   Max.   :120.00</code></pre>
+<div id="data-description" class="section level1">
+<h1><span class="header-section-number">1</span> Data description</h1>
+<div id="original-ping-data" class="section level2">
+<h2><span class="header-section-number">1.1</span> Original ping data</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1">pacman<span class="op">::</span><span class="kw">p_load</span>(data.table, dplyr, ggplot2, lubridate)</a>
+<a class="sourceLine" id="cb1-2" title="2">d =<span class="st"> </span><span class="kw">fread</span>(<span class="st">&quot;data/sample_ping.csv&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="st">  </span>.[,ping_time <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">ymd_hms</span>(ping_time)]</a>
+<a class="sourceLine" id="cb1-4" title="4">knitr<span class="op">::</span><span class="kw">kable</span>(d[<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>,], <span class="dt">caption =</span> <span class="st">&quot;Sample ping data&quot;</span>, <span class="dt">align =</span> <span class="st">&quot;c&quot;</span>)</a></code></pre></div>
+<table>
+<caption>Sample ping data</caption>
+<thead>
+<tr class="header">
+<th align="center">driver</th>
+<th align="center">ping_time</th>
+<th align="center">speed</th>
+<th align="center">lat</th>
+<th align="center">long</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">sample_driver</td>
+<td align="center">2014-01-23 23:00:12</td>
+<td align="center">0</td>
+<td align="center">35.37409</td>
+<td align="center">-77.92632</td>
+</tr>
+<tr class="even">
+<td align="center">sample_driver</td>
+<td align="center">2014-01-23 23:15:12</td>
+<td align="center">0</td>
+<td align="center">35.37410</td>
+<td align="center">-77.92639</td>
+</tr>
+<tr class="odd">
+<td align="center">sample_driver</td>
+<td align="center">2014-01-23 23:16:40</td>
+<td align="center">0</td>
+<td align="center">35.37409</td>
+<td align="center">-77.92639</td>
+</tr>
+<tr class="even">
+<td align="center">sample_driver</td>
+<td align="center">2014-01-23 23:18:38</td>
+<td align="center">0</td>
+<td align="center">35.37410</td>
+<td align="center">-77.92638</td>
+</tr>
+<tr class="odd">
+<td align="center">sample_driver</td>
+<td align="center">2014-01-23 23:21:00</td>
+<td align="center">12</td>
+<td align="center">35.37359</td>
+<td align="center">-77.92545</td>
+</tr>
+</tbody>
+</table>
 </div>
-<div id="including-plots" class="section level2">
-<h2><span class="header-section-number">1.2</span> Including Plots</h2>
-<p>You can also embed plots, for example:</p>
-<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASAAAAEgCAMAAAAjXV6yAAAAWlBMVEUAAAAAADoAAGYAOjoAOpAAZrY6AAA6ADo6AGY6kNtmAABmADpmkJBmtrZmtv+QOgCQkGaQtpCQ2/+2ZgC225C2///bkDrb/7bb////tmb/25D//7b//9v////CBROVAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAH/klEQVR4nO2dDXebNhSGSRc7s7vaW1i9YJv//zeHBOLDjngvQrIEvM857XHDRVKeCkmYC2QlGSWL3YDUoSAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJQEICCABQEoCAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJQEICCABQEoCAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJME3Q/Z5ofvwM1Jz0mCbpkh/pDYT6snymC7udWy+X9K0BjUmSKoNvxZD4WmznI2IMAE8egpgtxDLJwO9az2Gb6j/d1ULYYYgnyW1wAGjeBBMGFYvKCst4f8Q5i8EIxdUGZ+TuIIME0v21B9oXi9LEvEuxBiNBjEFooJi8o8CwGF4rpC2rgOghAQYBAgvIs2+nF4skSsHFBau7Ks50aixY7SDeEm+aLt89ywdO8IdxCsV4i2r5R3LYg9iBEOwb11tQziosJZzEA10EACgJQEICCABQEoCAABQEoCOAi6HbM3r/yeRfd1yyoOsmqTiWsX2R4rjc20wWp0yt1rnWZlfmzYkHquwwlaF5q1IoFmR6Uz0ptWbGgZgy6WE/UR0tZypXVFsdZLMv012EvqDc2XAc98Ni53cYgD+3wUEYIni7Hu81ifhqSIFnv7/Lps2BXhZfU5xULMnkJ8+7DWLEgny1JDw9jkL+GJMn8WWzVh9gzzj1o5lC9fkFlvntJvbFxF8SzeRA4+n3Q8jPtDc6CbseRQ2z5mfYt7rPYyNdBa8iTNoRLoKphAtV3bLwHqesZl/GbCdeQad/gICh//7rud+ProC1n2qsBpqh6CNdBlkAlKK/k8LqYLTDf3Y7qyurYIbbphWI1vrx93s9jfja9UBSw8Wkes8RbMm1NCrIOWmAPevqqtb9BXEKNYB20uIXi85f1wy3iIkrhOmhpC0Xfgla3DvIpSLQOmlBcGvgcgwTroIbr3nqVOjVBPmcxTHtlyL6WTk6QjTAXDpvJa0k9yIZjAhVKA1aj1GYFydKA87fPjQqSpgFXJ6zbFCROA77u/9ikIHka8P1sz4RdsaBZacDT642N4yzGNGD3wCjFhcNtDHphvYGBX925zWLzSUSQ9Rx1ECEuqmZFacD2bzkeQsRllevKUQwiyA8U9NriXAkyBtUH2cwnRSciKMQsZp6cNG+lmIogiMs6qJ7meUumJfD2s+46TrN9uldWbbj3oHnvO1ixIH3VsHfxNHC9YZB34RkLxVlrxbiC8Ow+CPUbGKU4l8plTaAgUazPwCjFuVROQeO1cwwarT7gLOaHNa+DXluv31qnr+A3JWjC0DPYx29glOIm1DmxZgoS7eQzMEpxE+qkoO9q696ywjHIUlltiLOYvS7HGlctaPD+Igr6to5u2KGgruzHjuMyOLeFeQ+MUlxd5nCu6nWcGRcJAgmS3ZLZttv+YcKWRkr7j1lH1rChXgMVslsyu9nX+mHCFuPDz5E1aKjfwFJ6Q93zf/XTh1lbZh1Z/YZ6Diylt2QGEuSn43Qt9h5YRupBvYPO53XbUGOQ5JZMv2OQZzH9hvoN1MhuyfQ7i4UhkKBXFxeOaIIWQyRBY4XO/mmgYsehIAAFASgIQEEACgJQEICCABQEWMy5QSwoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQwL+gQvIQouufvwextp10vs1BFKou/D6GiNoyjndB6vb7ArXqdtTJD22sbaf7ufrhJdsJQuu3Eg1DRG0B+BZUJziAd3AVdQpWG2vdqX7eXvWb41D9POxSPWpVEDsB34LaX2kkpsgOOn2mjQU7VZ1AGqoESWNleBf0oXo0fDpBLcjEgp3yXgQIVU/WkMbK8C2oPuThga9b3caO76RybWShhR7QhcUKSV9QYcZoyS99P79/pS3I+yFW52qJDxs1XiV9iAkHRvEgfek/oVkw8Fbb0x6khVNrIZvm26Q/QWitoxAtCSYQZ6HY9Hu4orvuTS6kYPGnnnyknSS9UOwt+MdoBoY21rLTpc4GU5tQaEVehZ4kxU6BJ6sACgJQEICCABQEoCAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJQECCioML5HTDue04nniD3t076eV+lEAoCRBN03esnfV3qTPrr/tcxU+8hVwks149/9k1+fbP59vNvlVld57foPf9TkipTzZaLScj3TuQepNN294fqj06pV7+qSp2rNOiXVZnNt6N6aprKFVM/UXvejCC9xcQFIK4gnR2v8y33hyafTCcZqp9e3r/azfqDfkWcSrQbCjqUXTEBmhlXUJ0fZxIvzV9NtqHJ463+2Y46hTrGhoJOZVdMgGZGFtQ8ce1B0IdJdDaba0HVQPPj36cedCq7YgI0M4UeVHZuHgSZzVpDG2PpQWGIPQY1/+kPh5hO31Vj0KmLbbLz20Ps0B18Ief9mIIOzWtd8+Zunk6QSt81s5ja3Pag2zE76D3VPQf3c3vwNXEBmhnxVCM366CqZzwI+mvfJfSqze0Y9PapNKg91VNTfx3N8N3EBSDFk9Uw05EjFASgIECKgpKCggAUBKAgAAUBKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJQEICCABQEoCAABQH+B7sh0kdziByNAAAAAElFTkSuQmCC" /><!-- --></p>
-<p>Note that the <code>echo = FALSE</code> parameter was added to the code chunk to prevent printing of the R code that generated the plot.</p>
+<div id="aggregate-ping-data-into-trips" class="section level2">
+<h2><span class="header-section-number">1.2</span> Aggregate ping data into trips</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" title="1">segment_<span class="dv">0</span> =<span class="st"> </span><span class="cf">function</span>(speed, threshold, time_diff) {</a>
+<a class="sourceLine" id="cb2-2" title="2">  <span class="co">## Replace very long single points</span></a>
+<a class="sourceLine" id="cb2-3" title="3">  speed[time_diff <span class="op">&gt;=</span><span class="st"> </span>threshold] &lt;-<span class="st"> </span><span class="dv">0</span></a>
+<a class="sourceLine" id="cb2-4" title="4">  <span class="co">## First, replacing stretches of less than &quot;threshold&quot; consecutive 0 speeds by 1s</span></a>
+<a class="sourceLine" id="cb2-5" title="5">  r1 =<span class="st"> </span><span class="kw">rle</span>(speed <span class="op">!=</span><span class="st"> </span><span class="dv">0</span>)</a>
+<a class="sourceLine" id="cb2-6" title="6">  r1<span class="op">$</span>values &lt;-<span class="st"> </span><span class="kw">replicate</span>(<span class="kw">length</span>(r1<span class="op">$</span>values), <span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb2-7" title="7">  r1<span class="op">$</span>values &lt;-<span class="st"> </span><span class="kw">cumsum</span>(r1<span class="op">$</span>values)</a>
+<a class="sourceLine" id="cb2-8" title="8">  order_tmp &lt;-<span class="st"> </span><span class="kw">inverse.rle</span>(r1)</a>
+<a class="sourceLine" id="cb2-9" title="9">  dat_tmp1 &lt;-<span class="st"> </span>data.table<span class="op">::</span><span class="kw">data.table</span>(speed, order_tmp, time_diff)</a>
+<a class="sourceLine" id="cb2-10" title="10">  dat_tmp2 &lt;-<span class="st"> </span>dat_tmp1[,.(<span class="dt">sumdiff =</span> <span class="kw">sum</span>(time_diff)), by =<span class="st"> </span>order_tmp]</a>
+<a class="sourceLine" id="cb2-11" title="11">  r2 =<span class="st"> </span><span class="kw">rle</span>(speed <span class="op">!=</span><span class="st"> </span><span class="dv">0</span>)</a>
+<a class="sourceLine" id="cb2-12" title="12">  r2<span class="op">$</span>values[r2<span class="op">$</span>values <span class="op">==</span><span class="st"> </span><span class="dv">0</span> <span class="op">&amp;</span><span class="st"> </span>dat_tmp2<span class="op">$</span>sumdiff <span class="op">&lt;</span><span class="st"> </span>threshold] &lt;-<span class="st"> </span><span class="ot">TRUE</span></a>
+<a class="sourceLine" id="cb2-13" title="13">  r2 &lt;-<span class="st"> </span><span class="kw">inverse.rle</span>(r2)</a>
+<a class="sourceLine" id="cb2-14" title="14">  r2 &lt;-<span class="st"> </span><span class="kw">rle</span>(r2)</a>
+<a class="sourceLine" id="cb2-15" title="15">  <span class="co">## Then numbering consecutive stretches of non-zero values</span></a>
+<a class="sourceLine" id="cb2-16" title="16">  r2<span class="op">$</span>values[r2<span class="op">$</span>values] =<span class="st"> </span><span class="kw">cumsum</span>(r2<span class="op">$</span>values[r2<span class="op">$</span>values])</a>
+<a class="sourceLine" id="cb2-17" title="17">  <span class="kw">return</span>(<span class="kw">inverse.rle</span>(r2))</a>
+<a class="sourceLine" id="cb2-18" title="18">}</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1">d_trip =<span class="st"> </span>d <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb3-2" title="2"><span class="st">  </span>.[,diff <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.integer</span>(<span class="kw">difftime</span>(ping_time, <span class="kw">shift</span>(ping_time, <span class="dt">type =</span> <span class="st">&quot;lag&quot;</span>, <span class="dt">fill =</span> <span class="dv">0</span>), </a>
+<a class="sourceLine" id="cb3-3" title="3">                                 <span class="dt">units =</span> <span class="st">&quot;mins&quot;</span>)), driver] <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb3-4" title="4"><span class="st">  </span>.[,diff <span class="op">:</span><span class="er">=</span><span class="st"> </span>{diff[<span class="dv">1</span>] =<span class="st"> </span>0L; diff}, driver] <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb3-5" title="5"><span class="st">  </span>.[,trip_id <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">segment_0</span>(<span class="dt">speed =</span> speed, <span class="dt">threshold =</span> <span class="dv">30</span>, <span class="dt">time_diff =</span> diff), driver] <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb3-6" title="6"><span class="st">  </span>.[,shift_id <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">segment_0</span>(<span class="dt">speed =</span> speed, <span class="dt">threshold =</span> <span class="dv">8</span><span class="op">*</span><span class="dv">60</span>, <span class="dt">time_diff =</span> diff), driver] <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb3-7" title="7"><span class="st">  </span>.[trip_id <span class="op">!=</span><span class="st"> </span><span class="dv">0</span>,] <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb3-8" title="8"><span class="st">  </span>.[,.(<span class="dt">start_time =</span> ping_time[<span class="dv">1</span>], <span class="dt">end_time =</span> ping_time[.N]), .(driver, shift_id, trip_id)] <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb3-9" title="9"><span class="st">  </span>.[,trip_length <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.numeric</span>(<span class="kw">difftime</span>(end_time, start_time, <span class="dt">units =</span> <span class="st">&quot;mins&quot;</span>))] <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb3-10" title="10"><span class="st">  </span>.[,trip_median <span class="op">:</span><span class="er">=</span><span class="st"> </span>start_time <span class="op">+</span><span class="st"> </span><span class="dv">60</span><span class="op">*</span>trip_length<span class="op">/</span><span class="dv">2</span>] <span class="op">%&gt;%</span><span class="st"> </span>.[]</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1">p2 =<span class="st"> </span>d <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-2" title="2"><span class="st">  </span>.[,point_color <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">case_when</span>(speed <span class="op">&gt;=</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &quot;&gt;= 50 MPH&quot;</span>, </a>
+<a class="sourceLine" id="cb4-3" title="3">                             speed <span class="op">&gt;=</span><span class="st"> </span><span class="dv">25</span> <span class="op">&amp;</span><span class="st"> </span>speed <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &quot;(25, 50] MPH&quot;</span>, </a>
+<a class="sourceLine" id="cb4-4" title="4">                             speed <span class="op">&gt;</span><span class="st">   </span><span class="dv">0</span> <span class="op">&amp;</span><span class="st"> </span>speed <span class="op">&lt;</span><span class="st"> </span><span class="dv">25</span> <span class="op">~</span><span class="st"> &quot;(0, 25] MPH&quot;</span>, </a>
+<a class="sourceLine" id="cb4-5" title="5">                             speed <span class="op">==</span><span class="st"> </span><span class="dv">0</span> <span class="op">~</span><span class="st"> &quot;0 MPH&quot;</span>)] <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-6" title="6"><span class="st">  </span>.[,point_color <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">factor</span>(point_color, <span class="dt">levels =</span> </a>
+<a class="sourceLine" id="cb4-7" title="7">          <span class="kw">c</span>(<span class="st">&quot;0 MPH&quot;</span>, <span class="st">&quot;(0, 25] MPH&quot;</span>, <span class="st">&quot;(25, 50] MPH&quot;</span>, <span class="st">&quot;&gt;= 50 MPH&quot;</span>))] <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-8" title="8"><span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(ping_time, speed)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-9" title="9"><span class="st">  </span><span class="kw">geom_point</span>(<span class="kw">aes</span>(<span class="dt">color =</span> point_color)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-10" title="10"><span class="st">  </span><span class="kw">scale_colour_manual</span>(<span class="dt">name =</span> <span class="st">&quot;speed category&quot;</span>, </a>
+<a class="sourceLine" id="cb4-11" title="11">                      <span class="dt">values =</span> <span class="kw">c</span>(<span class="st">&quot;#636363&quot;</span>, <span class="st">&quot;#31a354&quot;</span>, <span class="st">&quot;#fb6a4a&quot;</span>, <span class="st">&quot;#a50f15&quot;</span>)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-12" title="12"><span class="st">  </span><span class="kw">geom_line</span>() <span class="op">+</span><span class="st"> </span><span class="kw">theme_bw</span>() <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-13" title="13"><span class="st">  </span><span class="kw">geom_segment</span>(<span class="dt">data =</span> d_trip, <span class="kw">aes</span>(<span class="dt">x =</span> start_time, <span class="dt">xend =</span> end_time,</a>
+<a class="sourceLine" id="cb4-14" title="14">                             <span class="dt">y =</span> <span class="dv">-3</span>, <span class="dt">yend =</span> <span class="dv">-3</span>),</a>
+<a class="sourceLine" id="cb4-15" title="15">               <span class="dt">arrow =</span> <span class="kw">arrow</span>(<span class="dt">length =</span> <span class="kw">unit</span>(<span class="fl">0.2</span>, <span class="st">&quot;cm&quot;</span>)),</a>
+<a class="sourceLine" id="cb4-16" title="16">               <span class="dt">lineend =</span> <span class="st">&#39;butt&#39;</span>, <span class="dt">size =</span> <span class="fl">0.8</span>, <span class="dt">color =</span> <span class="st">&quot;#7b3294&quot;</span>) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-17" title="17"><span class="st">  </span><span class="kw">geom_text</span>(<span class="dt">data =</span> d_trip, <span class="kw">aes</span>(<span class="dt">x =</span> trip_median,</a>
+<a class="sourceLine" id="cb4-18" title="18">                             <span class="dt">y =</span> <span class="kw">rep</span>(<span class="op">-</span><span class="fl">4.8</span>, <span class="kw">nrow</span>(d_trip)),</a>
+<a class="sourceLine" id="cb4-19" title="19">                             <span class="dt">label =</span> <span class="kw">paste</span>(<span class="kw">c</span>(<span class="st">&quot;Trip&quot;</span>, <span class="st">&quot;Trip&quot;</span>, <span class="st">&quot;Trip&quot;</span>, <span class="st">&quot;Trip&quot;</span>, <span class="st">&quot;Trip&quot;</span>, <span class="st">&quot;Trip&quot;</span>), </a>
+<a class="sourceLine" id="cb4-20" title="20">                                           <span class="dv">1</span><span class="op">:</span><span class="kw">nrow</span>(d_trip), <span class="st">&quot; &quot;</span>)),</a>
+<a class="sourceLine" id="cb4-21" title="21">            <span class="dt">color =</span> <span class="st">&quot;#7b3294&quot;</span>, <span class="dt">size =</span> <span class="dv">3</span>) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-22" title="22"><span class="st">  </span><span class="kw">labs</span>(<span class="dt">x =</span> <span class="st">&quot;date and time of ping&quot;</span>, <span class="dt">y =</span> <span class="st">&quot;ping speed (MPH)&quot;</span>) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-23" title="23"><span class="st">  </span><span class="kw">scale_y_continuous</span>(<span class="dt">breaks =</span> <span class="kw">c</span>(<span class="dv">0</span>, <span class="dv">25</span>, <span class="dv">50</span>), <span class="dt">limits =</span> <span class="kw">c</span>(<span class="op">-</span><span class="dv">5</span>, <span class="dv">70</span>)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-24" title="24"><span class="st">  </span><span class="kw">theme</span>(<span class="dt">legend.justification =</span> <span class="kw">c</span>(<span class="dv">1</span>, <span class="dv">1</span>), <span class="dt">legend.position =</span> <span class="kw">c</span>(<span class="fl">0.97</span>, <span class="dv">1</span>),</a>
+<a class="sourceLine" id="cb4-25" title="25">        <span class="dt">legend.background =</span> <span class="kw">element_rect</span>(<span class="dt">fill=</span><span class="kw">alpha</span>(<span class="st">&#39;white&#39;</span>, <span class="fl">0.1</span>)),</a>
+<a class="sourceLine" id="cb4-26" title="26">        <span class="dt">legend.direction=</span><span class="st">&quot;horizontal&quot;</span>, </a>
+<a class="sourceLine" id="cb4-27" title="27">        <span class="dt">panel.grid.major.x =</span> <span class="kw">element_blank</span>(), <span class="dt">panel.grid.minor =</span> <span class="kw">element_blank</span>())</a>
+<a class="sourceLine" id="cb4-28" title="28">p2</a></code></pre></div>
+<p><img src="data:image/png;base64,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" style="display: block; margin: auto;" /></p>
+</div>
+</div>
+<div id="statistical-modeling" class="section level1">
+<h1><span class="header-section-number">2</span> Statistical modeling</h1>
+<div id="negative-binomial-model" class="section level2">
+<h2><span class="header-section-number">2.1</span> Negative binomial model</h2>
+</div>
+<div id="bayesian-negative-binomial-regression-using-rstanarm" class="section level2">
+<h2><span class="header-section-number">2.2</span> Bayesian Negative binomial regression using <code>rstanarm</code></h2>
+</div>
+<div id="model-comparison-and-diagnostics-using-loo" class="section level2">
+<h2><span class="header-section-number">2.3</span> Model comparison and diagnostics using <code>loo</code></h2>
 </div>
 </div>
 

@@ -1,0 +1,12 @@
+body{ /* Normal  */
+      font-size: 12px;
+  }
+h1 { /* Header 1 */
+  font-size: 28px;
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+  color: DarkBlue;
+}
+
+

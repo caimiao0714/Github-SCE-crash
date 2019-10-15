@@ -10,11 +10,11 @@ output:
     toc: yes
     number_sections: yes
     fig_caption: yes
-vignette: >
-  %\VignetteEngine{knitr::rmarkdown}
+vignette: 
+  \VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
-#params:
-#  EVAL: !r identical(Sys.getenv("NOT_CRAN"), "true")
+params:
+  EVAL: !r identical(Sys.getenv("NOT_CRAN"), "true")
 ---
 
 
@@ -33,8 +33,8 @@ h2 { /* Header 2 */
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.width = 7, 
-                      fig.height = 7*0.618, fig.align = "center")
+knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 7*0.618, 
+                      fig.align = "center", fig.retina = 2)
 ```
 
 
@@ -47,68 +47,69 @@ Original ping data
 pacman::p_load(data.table, dplyr, ggplot2, lubridate)
 d = fread("data/sample_ping.csv") %>% 
   .[,ping_time := ymd_hms(ping_time)]
-knitr::kable(d[1:5,], caption = "Sample ping data", align = "c")
+
+knitr::kable(d[1:10,], align = "c", caption = "Sample ping data")
 ```
 
 Aggregate ping data into trips
 ------------------------------
 ```{r}
 segment_0 = function(speed, threshold, time_diff) {
-  ## Replace very long single points
+  speed1 = speed
   speed[time_diff >= threshold] <- 0
-  ## First, replacing stretches of less than "threshold" consecutive 0 speeds by 1s
   r1 = rle(speed != 0)
   r1$values <- replicate(length(r1$values), 1)
   r1$values <- cumsum(r1$values)
   order_tmp <- inverse.rle(r1)
   dat_tmp1 <- data.table::data.table(speed, order_tmp, time_diff)
   dat_tmp2 <- dat_tmp1[,.(sumdiff = sum(time_diff)), by = order_tmp]
-  r2 = rle(speed != 0)
+  r2 = rle(speed != 0); first_rle = r2$values[1]
   r2$values[r2$values == 0 & dat_tmp2$sumdiff < threshold] <- TRUE
-  r2 <- inverse.rle(r2)
-  r2 <- rle(r2)
-  ## Then numbering consecutive stretches of non-zero values
+  r2$values[1] = first_rle
+  r2 <- rle(inverse.rle(r2))
   r2$values[r2$values] = cumsum(r2$values[r2$values])
-  return(inverse.rle(r2))
+  id = inverse.rle(r2)
+  jump_speed = which(id == 0 & speed1 != 0)
+  id[jump_speed] = id[jump_speed + 1]
+  return(id)
 }
 ```
 
-```{r datamanipulation}
-d_trip = d %>% 
+```{r pingID}
+d_id = d %>% 
   .[,diff := as.integer(difftime(ping_time, shift(ping_time, type = "lag", fill = 0), 
                                  units = "mins")), driver] %>%
   .[,diff := {diff[1] = 0L; diff}, driver] %>%
-  .[,trip_id := segment_0(speed = speed, threshold = 30, time_diff = diff), driver] %>%
-  .[,shift_id := segment_0(speed = speed, threshold = 8*60, time_diff = diff), driver] %>%
+  .[,trip_id := segment_0(speed = speed, threshold = 30, time_diff = diff), driver]
+
+knitr::kable(d_id[1:10,], align = "c", caption = "Sample ping data with time difference and trip ID")
+```
+
+```{r trips}
+d_trip = d %>%
   .[trip_id != 0,] %>% 
-  .[,.(start_time = ping_time[1], end_time = ping_time[.N]), .(driver, shift_id, trip_id)] %>% 
-  .[,trip_length := as.numeric(difftime(end_time, start_time, units = "mins"))] %>% 
-  .[,trip_median := start_time + 60*trip_length/2] %>% .[]
+  .[,.(start_time = ping_time[1], end_time = ping_time[.N]), .(driver, trip_id)] %>% 
+  .[,trip_length := round(as.numeric(difftime(end_time, start_time, units = "mins")), 2)] %>% 
+  .[,trip_median := start_time + 60*trip_length/2]
 
-
+knitr::kable(d_trip, align = "c", caption = "Aggregated trips from sample ping")
 ```
 
 ```{r}
 p2 = d %>% 
-  .[,point_color := case_when(speed >= 50 ~ ">= 50 MPH", 
+  .[,p_color := case_when(speed >= 50 ~ ">=50 MPH", 
                              speed >= 25 & speed < 50 ~ "(25, 50] MPH", 
                              speed >   0 & speed < 25 ~ "(0, 25] MPH", 
                              speed == 0 ~ "0 MPH")] %>% 
-  .[,point_color := factor(point_color, levels = 
-          c("0 MPH", "(0, 25] MPH", "(25, 50] MPH", ">= 50 MPH"))] %>% 
+  .[,p_color := factor(p_color, levels = c("0 MPH", "(0, 25] MPH", "(25, 50] MPH", ">=50 MPH"))] %>% 
   ggplot(aes(ping_time, speed)) + 
-  geom_point(aes(color = point_color)) + 
-  scale_colour_manual(name = "speed category", 
-                      values = c("#636363", "#31a354", "#fb6a4a", "#a50f15")) + 
+  geom_point(aes(color = p_color)) + 
+  scale_colour_manual(name = "speed category", values = c("#636363", "#31a354", "#fb6a4a", "#a50f15")) + 
   geom_line() + theme_bw() + 
-  geom_segment(data = d_trip, aes(x = start_time, xend = end_time,
-                             y = -3, yend = -3),
-               arrow = arrow(length = unit(0.2, "cm")),
-               lineend = 'butt', size = 0.8, color = "#7b3294") + 
-  geom_text(data = d_trip, aes(x = trip_median,
-                             y = rep(-4.8, nrow(d_trip)),
-                             label = paste(c("Trip", "Trip", "Trip", "Trip", "Trip", "Trip"), 
-                                           1:nrow(d_trip), " ")),
+  geom_segment(data = d_trip, aes(x = start_time, xend = end_time, y = -3, yend = -3),
+               arrow = arrow(length = unit(.2, "cm")), lineend = 'butt', size = .8, color = "#7b3294") + 
+  geom_text(data = d_trip, aes(x = trip_median, y = rep(-4.8, nrow(d_trip)),
+                             label = paste(rep("Trip", nrow(d_trip)), 1:nrow(d_trip), " ")),
             color = "#7b3294", size = 3) + 
   labs(x = "date and time of ping", y = "ping speed (MPH)") + 
   scale_y_continuous(breaks = c(0, 25, 50), limits = c(-5, 70)) + 

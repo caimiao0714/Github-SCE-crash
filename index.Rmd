@@ -81,7 +81,7 @@ segment_0 = function(speed, threshold, time_diff) {
 }
 ```
 
-The code block below shows R code to separate the original ping data into different trips by adding a `trip_id` column. Here we set the threshold value as 30 minutes, which means that the ping data will be separated into different trips when the vehicle is not moving (the speed of the ping equals zero) for more than 30 minutes. The pings that has trip_id of 0 are stopping pings.
+The code block below shows R code to separate the original ping data into different trips by adding a `trip_id` column. Here we set the threshold value as 30 minutes, which means that the ping data will be separated into different trips when the vehicle is not moving (the speed of the ping equals zero) for more than 30 minutes. The pings that has `trip_id` of 0 are stopping pings.
 
 ```{r pingID}
 d_id = d %>% 
@@ -139,7 +139,7 @@ Statistical modeling
 ====================
 Aggregated driver-level data
 ----------------------------
-The table below demonstrates the data for Bayesian Negative Binomial (NB) regression models. The definition of the safety-critical events variables are:
+The table below demonstrates the data for Bayesian Negative Binomial (NB) regression models. The definition of the safety-critical events variables is:
 
 - `sce_CM`: the number of collision mitigation,
 - `sce_HB`: the number of hard brakes,
@@ -159,7 +159,7 @@ knitr::kable(stat[1:5,], align = "c",
 
 Bayesian NB regression using `rstanarm`
 ---------------------------------------
-The code below shows the code for Bayesian NB regression models. For demonstration purpose, we only used the first 1,000 observations, 1 chain, and 1,000 iterations with 500 warm-up.
+The code below shows the code for Bayesian NB regression models. For demonstration purpose, we only use the first 1,000 observations of the data, 1 Markov chain with 1,000 iterations and the first 500 of them are warm-up iterations.
 
 ```{r}
 stat = stat %>% 

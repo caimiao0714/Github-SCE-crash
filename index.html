@@ -574,7 +574,7 @@ sample_driver
 <a class="sourceLine" id="cb2-17" title="17">  id[jump_speed] =<span class="st"> </span>id[jump_speed <span class="op">+</span><span class="st"> </span><span class="dv">1</span>]</a>
 <a class="sourceLine" id="cb2-18" title="18">  <span class="kw">return</span>(id)</a>
 <a class="sourceLine" id="cb2-19" title="19">}</a></code></pre></div>
-<p>The code block below shows R code to separate the original ping data into different trips by adding a <code>trip_id</code> column. Here we set the threshold value as 30 minutes, which means that the ping data will be separated into different trips when the vehicle is not moving (the speed of the ping equals zero) for more than 30 minutes. The pings that has trip_id of 0 are stopping pings.</p>
+<p>The code block below shows R code to separate the original ping data into different trips by adding a <code>trip_id</code> column. Here we set the threshold value as 30 minutes, which means that the ping data will be separated into different trips when the vehicle is not moving (the speed of the ping equals zero) for more than 30 minutes. The pings that has <code>trip_id</code> of 0 are stopping pings.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1">d_id =<span class="st"> </span>d <span class="op">%&gt;%</span><span class="st"> </span></a>
 <a class="sourceLine" id="cb3-2" title="2"><span class="st">  </span>.[,diff <span class="op">:</span><span class="er">=</span><span class="st"> </span><span class="kw">as.integer</span>(<span class="kw">difftime</span>(ping_time, <span class="kw">shift</span>(ping_time, <span class="dt">type =</span> <span class="st">&quot;lag&quot;</span>, <span class="dt">fill =</span> <span class="dv">0</span>), </a>
 <a class="sourceLine" id="cb3-3" title="3">                                 <span class="dt">units =</span> <span class="st">&quot;mins&quot;</span>)), driver] <span class="op">%&gt;%</span></a>
@@ -792,7 +792,7 @@ sample_driver
 <h1><span class="header-section-number">2</span> Statistical modeling</h1>
 <div id="aggregated-driver-level-data" class="section level2">
 <h2><span class="header-section-number">2.1</span> Aggregated driver-level data</h2>
-<p>The table below demonstrates the data for Bayesian Negative Binomial (NB) regression models. The definition of the safety-critical events variables are:</p>
+<p>The table below demonstrates the data for Bayesian Negative Binomial (NB) regression models. The definition of the safety-critical events variables is:</p>
 <ul>
 <li><code>sce_CM</code>: the number of collision mitigation,</li>
 <li><code>sce_HB</code>: the number of hard brakes,</li>
@@ -1157,7 +1157,7 @@ REG
 </div>
 <div id="bayesian-nb-regression-using-rstanarm" class="section level2">
 <h2><span class="header-section-number">2.2</span> Bayesian NB regression using <code>rstanarm</code></h2>
-<p>The code below shows the code for Bayesian NB regression models. For demonstration purpose, we only used the first 1,000 observations, 1 chain, and 1,000 iterations with 500 warm-up.</p>
+<p>The code below shows the code for Bayesian NB regression models. For demonstration purpose, we only use the first 1,000 observations of the data, 1 Markov chain with 1,000 iterations and the first 500 of them are warm-up iterations.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb7-1" title="1">stat =<span class="st"> </span>stat <span class="op">%&gt;%</span><span class="st"> </span></a>
 <a class="sourceLine" id="cb7-2" title="2"><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">sce_CM =</span> sce_CM<span class="op">*</span><span class="dv">10000</span><span class="op">/</span>distance,</a>
 <a class="sourceLine" id="cb7-3" title="3">         <span class="dt">sce_HB =</span> sce_HB<span class="op">*</span><span class="dv">10000</span><span class="op">/</span>distance,</a>

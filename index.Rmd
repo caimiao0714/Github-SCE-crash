@@ -222,5 +222,14 @@ loo::compare(fit_loo, fit_new_loo)
 
 With two model fits `fit` and `fit_new` above, researchers can compare the model fit using `compare()` from the `loo` package, as shown above. It compares the expected predictive accuracy by the difference in `elpd_loo`, with positive difference `elpd_diff` suggesting the second model while negative difference favoring the first model.
 
+Session information {-}
+===================
+The R session information when building this website is shown below:
+
+```{r}
+sessionInfo()
+```
+
+
 Reference {-}
 =========

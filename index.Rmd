@@ -3,7 +3,7 @@ title: Supplemental Materials
 subtitle: |
   | The association between crashes and safety-critical events: 
   | synthesized evidence from crash reports and naturalistic driving data among commercial truck drivers.
-author: author names anonymized for peer-review
+author: Author names anonymized for peer-review
 date: "`r Sys.Date()`"
 output: 
   rmarkdown::html_vignette:
@@ -15,6 +15,7 @@ vignette:
   \usepackage[utf8]{inputenc}
 params:
   EVAL: !r identical(Sys.getenv("NOT_CRAN"), "true")
+bibliography: reference.bib
 ---
 
 
@@ -34,25 +35,30 @@ h2 { /* Header 2 */
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 7*0.618, 
-                      fig.align = "center", fig.retina = 2)
+                      fig.align = "center", fig.retina = 2, cache = T)
 ```
 
 
 
-Data description
-================
-Original ping data
-------------------
-```{r}
-pacman::p_load(data.table, dplyr, ggplot2, lubridate)
+Ping data and trip aggregation
+==============================
+
+Ping data demonstration
+-----------------------
+```{r originping}
+pacman::p_load(data.table, dplyr, ggplot2, lubridate, kableExtra)
 d = fread("data/sample_ping.csv") %>% 
   .[,ping_time := ymd_hms(ping_time)]
 
 knitr::kable(d[1:10,], align = "c", caption = "Sample ping data")
 ```
 
-Aggregate ping data into trips
-------------------------------
+The above table shows a sample of the original data. It includes the exact date and time of the record (year, month, day, hour, minute, and second), latitude and longitude (specific to five decimal places), speed, and drivers' anonymized unique ID.
+
+Aggregating ping data into trips
+--------------------------------
+The self-defined function `segment_0()` below is used to separate the original ping data into trips according to a threshold value.
+
 ```{r}
 segment_0 = function(speed, threshold, time_diff) {
   speed1 = speed
@@ -75,6 +81,8 @@ segment_0 = function(speed, threshold, time_diff) {
 }
 ```
 
+The code block below shows R code to separate the original ping data into different trips by adding a `trip_id` column. Here we set the threshold value as 30 minutes, which means that the ping data will be separated into different trips when the vehicle is not moving (the speed of the ping equals zero) for more than 30 minutes. The pings that has trip_id of 0 are stopping pings.
+
 ```{r pingID}
 d_id = d %>% 
   .[,diff := as.integer(difftime(ping_time, shift(ping_time, type = "lag", fill = 0), 
@@ -85,6 +93,8 @@ d_id = d %>%
 knitr::kable(d_id[1:10,], align = "c", caption = "Sample ping data with time difference and trip ID")
 ```
 
+The table below is the aggregated trips data, including start time, end time, trip length, and the median trip time. The ping table and trips table can be merged into one table using driver ID and trip ID.
+
 ```{r trips}
 d_trip = d %>%
   .[trip_id != 0,] %>% 
@@ -94,6 +104,9 @@ d_trip = d %>%
 
 knitr::kable(d_trip, align = "c", caption = "Aggregated trips from sample ping")
 ```
+
+Ping and trip data visualization
+--------------------------------
 
 ```{r}
 p2 = d %>% 
@@ -120,18 +133,94 @@ p2 = d %>%
 p2
 ```
 
+The figure above shows the data aggregation process. The x-axis shows the data and time of pings, and the y-axis presents the speed of the ping (miles per hour, MPH). Each point represented a ping at that date and time, with different colors indicating the real-time speed category. Whenever the truck stopped (the grey points) for at least 30 minutes, the pings were separated into different trips, indicated by the purple arrows in the bottom (Trip 1, Trip 2, $\ldots$, Trip 6). The trip time was then calculated by taking the difference between the trip end time and start time. 
+
 Statistical modeling
 ====================
+Aggregated driver-level data
+----------------------------
+The table below demonstrates the data for Bayesian Negative Binomial (NB) regression models. The definition of the safety-critical events variables are:
 
-Negative binomial model
------------------------
+- `sce_CM`: the number of collision mitigation,
+- `sce_HB`: the number of hard brakes,
+- `sce_HW`: the number of headways,
+- `sce_RS`: the number of rolling stability,
+- `sce_N`: the number of any type of SCEs, so it should be the sum of `sce_CM`, `sce_HB`, `sce_HW`, and `sce_RS`.
 
+```{r}
+pacman::p_load(rstanarm, broom)
+stat = fread("data/Bayesian_NB_data.csv") %>% 
+  .[order(driver),]
+knitr::kable(stat[1:5,], align = "c", 
+             caption = "A demonstration for aggregated commercial truck driver data") %>% 
+  kable_styling() %>%
+  scroll_box(width = "100%")
+```
 
-Bayesian Negative binomial regression using `rstanarm`
-------------------------------------------------------
+Bayesian NB regression using `rstanarm`
+---------------------------------------
+The code below shows the code for Bayesian NB regression models. For demonstration purpose, we only used the first 1,000 observations, 1 chain, and 1,000 iterations with 500 warm-up.
 
+```{r}
+stat = stat %>% 
+  mutate(sce_CM = sce_CM*10000/distance,
+         sce_HB = sce_HB*10000/distance,
+         sce_HW = sce_HW*10000/distance,
+         sce_RS = sce_RS*10000/distance,
+         sce_N = sce_N*10000/distance )
 
+fit <- stan_glm(n_crash ~ sce_N + age + ping_speed + gender + bus_unit + d_type,
+                    offset = log(distance/1000),
+                    data = stat[1:1000,], family = neg_binomial_2, 
+                    prior = normal(0,10), 
+                    prior_intercept = normal(0,10), QR = TRUE,
+                    iter = 1000, chains = 1, cores = 1, seed = 123)
+```
 
+```{r}
+broom::tidy(fit, intervals = TRUE, prob = 0.95) %>% 
+  mutate(estimate = exp(estimate),
+         lower = exp(lower),
+         upper = exp(upper)) %>% 
+  select(term, IRR = estimate, `95% CI left` = lower, `95% CI right` = upper) %>% 
+  knitr::kable(align = "c", 
+               caption = "Posterior estimates of Bayesian NB model.")
+```
+
+The table above shows the incident rate ratios of the Bayesian NB regression, as well as their 95% credible intervals. The Bayesian interpretation is that there is 95% chance that the IRRs were within these intervals.
 
 Model comparison and diagnostics using `loo`
 --------------------------------------------
+
+```{r}
+prop_zero <- function(y) mean(y == 0)
+pp_check(fit, plotfun = "stat", stat = "prop_zero")
+```
+
+The above figure shows posterior predictive checks, which is a measure of the prediction accuracy. It compares the observed data to 100 replicated datasets generated from the posterior parameters distributions. For each simulated dataset, the proportion of zero crashes was computed, and the blue histograms shows the simulated distribution of the proportions. The black solid vertical lines are the observed proportion of zero crashes in observed data. When the observed proportion (black solid line) is near the center of the plot, it demonstrates good model fit.
+
+```{r}
+fit_loo = loo(fit)
+fit_loo
+```
+
+The above block shows the expected log predicted density (`elpd_loo`), estimate number of parameters (`p_loo`), and the LOO Information Criterion (`looic`) for a new dataset from Pareto smoothed importance-sampling leave-one-out (PSIS-LOO) cross-validation (CV). They can be used to check the goodness-of-fit of and compare different models [@vehtari2017practical; @vehtari2015pareto]. In a well-specified model, `p_loo` should be close to the total number of parameters. Similar to the Akaike information criterion (AIC) and Bayesian information criterion (BIC), the `looic` in the output can be used to compare different models, with lower values indicating better models. 
+
+```{r}
+fit_new <- stan_glm(n_crash ~ sce_N + age + ping_speed,
+                    offset = log(distance/1000),
+                    data = stat[1:1000,], family = neg_binomial_2, 
+                    prior = normal(0,10), 
+                    prior_intercept = normal(0,10), QR = TRUE,
+                    iter = 1000, chains = 1, cores = 1, seed = 123)
+fit_new_loo = loo(fit_new)
+```
+
+```{r}
+loo::compare(fit_loo, fit_new_loo)
+```
+
+With two model fits `fit` and `fit_new` above, researchers can compare the model fit using `compare()` from the `loo` package, as shown above. It compares the expected predictive accuracy by the difference in `elpd_loo`, with positive difference `elpd_diff` suggesting the second model while negative difference favoring the first model.
+
+Reference {-}
+=========

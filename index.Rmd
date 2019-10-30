@@ -3,7 +3,7 @@ title: Supplemental Materials
 subtitle: |
   | The association between crashes and safety-critical events: 
   | synthesized evidence from crash reports and naturalistic driving data among commercial truck drivers.
-author: Author names anonymized for peer-review
+#author: Author names anonymized for peer-review
 date: "`r Sys.Date()`"
 output: 
   rmarkdown::html_vignette:

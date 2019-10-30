@@ -38,7 +38,7 @@ knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 7*0.618,
                       fig.align = "center", fig.retina = 2, cache = T)
 ```
 
-
+[![DOI](https://zenodo.org/badge/215154957.svg)](https://zenodo.org/badge/latestdoi/215154957)
 
 Ping data and trip aggregation
 ==============================

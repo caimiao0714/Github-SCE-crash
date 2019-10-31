@@ -1,2 +1,5 @@
 private/
+index_cache/
+index_files/
+libs/
 .Rproj.user

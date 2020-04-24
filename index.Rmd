@@ -53,7 +53,7 @@ Ping data and trip aggregation
 Ping data demonstration
 -----------------------
 ```{r originping}
-pacman::p_load(data.table, dplyr, ggplot2, lubridate, kableExtra)
+pacman::p_load(data.table, dplyr, ggplot2, lubridate, kableExtra, psych, corrplot, scales)
 d = fread("data/sample_ping.csv") %>% 
   .[,ping_time := ymd_hms(ping_time)]
 
@@ -134,8 +134,8 @@ p2 = d %>%
   labs(x = "date and time of ping", y = "ping speed (MPH)") + 
   scale_y_continuous(breaks = c(0, 25, 50), limits = c(-5, 70)) + 
   theme(legend.justification = c(1, 1), legend.position = c(0.97, 1),
-        legend.background = element_rect(fill=alpha('white', 0.1)),
-        legend.direction="horizontal", 
+        legend.background = element_rect(fill = alpha('white', 0.1)),
+        legend.direction = "horizontal", 
         panel.grid.major.x = element_blank(), panel.grid.minor = element_blank())
 p2
 ```
@@ -164,11 +164,8 @@ knitr::kable(stat[1:5,], align = "c",
   scroll_box(width = "100%")
 ```
 
-Bayesian NB regression using `rstanarm`
----------------------------------------
-The code below shows the code for Bayesian NB regression models. For demonstration purpose, we only use the first 1,000 observations of the data, 1 Markov chain with 1,000 iterations and the first 500 of them are warm-up iterations.
-
 ```{r}
+pacman::p_load(corrgram)
 stat = stat %>% 
   mutate(sce_CM = sce_CM*10000/distance,
          sce_HB = sce_HB*10000/distance,
@@ -176,6 +173,37 @@ stat = stat %>%
          sce_RS = sce_RS*10000/distance,
          sce_N = sce_N*10000/distance )
 
+r0 = d[,.(`Headway` = sce_HW,
+     `Hard brake` = sce_HB,
+     `Rolling stability` = sce_RS,
+     `Collision mitigation` = sce_CM,
+     Age = age,
+     Gender = as.integer(factor(gender)),
+     `Ping speed` = ping_speed,
+     `Business unit` = as.integer(factor(bus_unit,
+        levels = c('Dedicated', 'Intermodal', 'Final-mile'))),
+     `Driver type` = as.integer(factor(d_type,
+        levels = c('Local', 'Regional', 'Over-the-road'))))] %>%
+  mixed.cor()
+
+corrplot(r0$rho,
+         method="color",
+         col = rev(RColorBrewer::brewer.pal(n = 8, name = "RdYlBu")),
+         type="lower",number.font = 7,
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt = 25,
+         diag=FALSE,
+         mar = rep(0, 4),
+         xpd = NA)
+```
+
+
+
+Bayesian NB regression using `rstanarm`
+---------------------------------------
+The code below shows the code for Bayesian NB regression models. For demonstration purpose, we only use the first 1,000 observations of the data, 1 Markov chain with 1,000 iterations and the first 500 of them are warm-up iterations.
+
+```{r}
 fit <- stan_glm(n_crash ~ sce_N + age + ping_speed + gender + bus_unit + d_type,
                     offset = log(distance/1000),
                     data = stat[1:1000,], family = neg_binomial_2, 

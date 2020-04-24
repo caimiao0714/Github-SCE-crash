@@ -53,7 +53,8 @@ Ping data and trip aggregation
 Ping data demonstration
 -----------------------
 ```{r originping}
-pacman::p_load(data.table, dplyr, ggplot2, lubridate, kableExtra, psych, corrplot, scales)
+pacman::p_load(data.table, dplyr, ggplot2, lubridate, 
+               kableExtra, psych, corrplot, scales, corrgram)
 d = fread("data/sample_ping.csv") %>% 
   .[,ping_time := ymd_hms(ping_time)]
 
@@ -165,7 +166,6 @@ knitr::kable(stat[1:5,], align = "c",
 ```
 
 ```{r}
-pacman::p_load(corrgram)
 stat = stat %>% 
   mutate(sce_CM = sce_CM*10000/distance,
          sce_HB = sce_HB*10000/distance,
@@ -173,17 +173,19 @@ stat = stat %>%
          sce_RS = sce_RS*10000/distance,
          sce_N = sce_N*10000/distance )
 
-r0 = d[,.(`Headway` = sce_HW,
-     `Hard brake` = sce_HB,
-     `Rolling stability` = sce_RS,
-     `Collision mitigation` = sce_CM,
-     Age = age,
-     Gender = as.integer(factor(gender)),
+r0 = stat %>% 
+  mutate(Gender = as.integer(factor(gender)),
      `Ping speed` = ping_speed,
      `Business unit` = as.integer(factor(bus_unit,
         levels = c('Dedicated', 'Intermodal', 'Final-mile'))),
      `Driver type` = as.integer(factor(d_type,
-        levels = c('Local', 'Regional', 'Over-the-road'))))] %>%
+        levels = c('Local', 'Regional', 'Over-the-road')))) %>% 
+  select(`Headway` = sce_HW, 
+            `Hard brake` = sce_HB,
+            `Rolling stability` = sce_RS,
+            `Collision mitigation` = sce_CM,
+            Age = age, 
+            Gender, `Ping speed`, `Business unit`, `Driver type`) %>%
   mixed.cor()
 
 corrplot(r0$rho,

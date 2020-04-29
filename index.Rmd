@@ -46,26 +46,26 @@ knitr::opts_chunk$set(echo = TRUE,
 
 This website serves as the supplementary materials for the manuscript *The association between crashes and safety-critical events: synthesized evidence from crash reports and naturalistic driving data among commercial truck drivers* by Miao Cai, Mohammad Ali Alamdar Yazdi, Amir Mehdizadeh, Qiong Hu, Alexander Vinel, Karen Davis, Fadel Megahed, Hong Xian, and Steven Rigdon. It is under 1st revision in [Transportation Research Part C: Emerging Technologies](https://www.journals.elsevier.com/transportation-research-part-c-emerging-technologies).
 
-The website is hold on [a GitHub repository](https://github.com/caimiao0714/Github-SCE-crash). The data is accessible at [the data folder](https://github.com/caimiao0714/Github-SCE-crash/tree/master/data). The Rmarkdown file that includes all the code to reproduce this website is accessible [here](https://github.com/caimiao0714/Github-SCE-crash/blob/master/index.Rmd).
+The website is hold on [a GitHub repository](https://github.com/caimiao0714/Github-SCE-crash). A fake ping data set (similar to real data but not the real data for confidentiality reasons) is accessible at [the data folder](https://github.com/caimiao0714/Github-SCE-crash/tree/master/data). The Rmarkdown file that includes all the code to reproduce this website is accessible [here](https://github.com/caimiao0714/Github-SCE-crash/blob/master/index.Rmd).
 
 Ping data and trip aggregation
 ==============================
 Ping data demonstration
 -----------------------
-```{r originping}
+```{r ping}
 pacman::p_load(data.table, dplyr, ggplot2, lubridate, 
                kableExtra, psych, corrplot, scales, corrgram)
 d = fread("data/sample_ping.csv") %>% 
   .[,ping_time := ymd_hms(ping_time)]
 
-knitr::kable(d[1:10,], align = "c", caption = "Sample ping data")
+knitr::kable(d[1:10,], align = "c", caption = "Fake ping data")
 ```
 
-The above table shows a sample of the original data. It includes the exact date and time of the record (year, month, day, hour, minute, and second), latitude and longitude (specific to five decimal places), speed, and drivers' anonymized unique ID.
+The above table shows a fake copy of our ping data, which is similar to but not the real data for confidentiality reasons. It is provided here to give the readers a flavor of how our ping data looks like. The data set includes the date and time of the record (year, month, day, hour, and minute [the seconds here are rounded to 0]), latitude and longitude (specific to five decimal places), speed, and drivers' anonymized unique ID.
 
 Aggregating ping data into trips
 --------------------------------
-The self-defined function `segment_0()` below is used to separate the original ping data into trips according to a threshold value.
+The self-defined function `segment_0()` below is used to separate the fake ping data into trips according to a threshold value.
 
 ```{r}
 segment_0 = function(speed, threshold, time_diff) {
@@ -89,7 +89,7 @@ segment_0 = function(speed, threshold, time_diff) {
 }
 ```
 
-The code block below shows R code to separate the original ping data into different trips by adding a `trip_id` column. Here we set the threshold value as 30 minutes, which means that the ping data will be separated into different trips when the vehicle is not moving (the speed of the ping equals zero) for more than 30 minutes. The pings that has `trip_id` of 0 are stopping pings.
+The code block below shows R code to separate the fake ping data into different trips by adding a `trip_id` column. Here we set the threshold value as 30 minutes, which means that the ping data will be separated into different trips when the vehicle is not moving (the speed of the ping equals zero) for more than 30 minutes. The pings that has `trip_id` of 0 are stopping pings.
 
 ```{r pingID}
 d_id = d %>% 
@@ -145,76 +145,30 @@ The figure above shows the data aggregation process. The x-axis shows the data a
 
 Statistical modeling
 ====================
-Aggregated driver-level data
-----------------------------
-The table below demonstrates the data for Bayesian Negative Binomial (NB) regression models. The definition of the safety-critical events variables is:
-
-- `sce_CM`: the number of collision mitigation,
-- `sce_HB`: the number of hard brakes,
-- `sce_HW`: the number of headways,
-- `sce_RS`: the number of rolling stability,
-- `sce_N`: the number of any type of SCEs, so it should be the sum of `sce_CM`, `sce_HB`, `sce_HW`, and `sce_RS`.
-
-```{r}
-pacman::p_load(rstanarm, broom)
-stat = fread("data/Bayesian_NB_data.csv") %>% 
-  .[order(driver),]
-knitr::kable(stat[1:5,], align = "c", 
-             caption = "A demonstration for aggregated commercial truck driver data") %>% 
-  kable_styling() %>%
-  scroll_box(width = "100%")
-```
-
-```{r}
-stat = stat %>% 
-  mutate(sce_CM = sce_CM*10000/distance,
-         sce_HB = sce_HB*10000/distance,
-         sce_HW = sce_HW*10000/distance,
-         sce_RS = sce_RS*10000/distance,
-         sce_N = sce_N*10000/distance )
-
-r0 = stat %>% 
-  mutate(Gender = as.integer(factor(gender)),
-     `Ping speed` = ping_speed,
-     `Business unit` = as.integer(factor(bus_unit,
-        levels = c('Dedicated', 'Intermodal', 'Final-mile'))),
-     `Driver type` = as.integer(factor(d_type,
-        levels = c('Local', 'Regional', 'Over-the-road')))) %>% 
-  select(`Headway` = sce_HW, 
-            `Hard brake` = sce_HB,
-            `Rolling stability` = sce_RS,
-            `Collision mitigation` = sce_CM,
-            Age = age, 
-            Gender, `Ping speed`, `Business unit`, `Driver type`) %>%
-  mixed.cor()
-
-corrplot(r0$rho,
-         method="color",
-         col = rev(RColorBrewer::brewer.pal(n = 8, name = "RdYlBu")),
-         type="lower",number.font = 7,
-         addCoef.col = "black", # Add coefficient of correlation
-         tl.col="black", tl.srt = 25,
-         diag=FALSE,
-         mar = rep(0, 4),
-         xpd = NA)
-```
-
-
-
 Bayesian NB regression using `rstanarm`
 ---------------------------------------
 The code below shows the code for Bayesian NB regression models. For demonstration purpose, we only use the first 1,000 observations of the data, 1 Markov chain with 1,000 iterations and the first 500 of them are warm-up iterations.
 
-```{r}
-fit <- stan_glm(n_crash ~ sce_N + age + ping_speed + gender + bus_unit + d_type,
-                    offset = log(distance/1000),
-                    data = stat[1:1000,], family = neg_binomial_2, 
-                    prior = normal(0,10), 
-                    prior_intercept = normal(0,10), QR = TRUE,
-                    iter = 1000, chains = 1, cores = 1, seed = 123)
+```{r eval=FALSE}
+pacman::p_load(rstanarm, broom)
+
+fit <-
+  stan_glm(
+    crash ~ SCE + speed + age + gender + bus_unit + d_type,
+    offset = log(distance / 1000),
+    data = data,
+    family = neg_binomial_2,
+    prior = normal(0, 10),
+    prior_intercept = normal(0, 10),
+    QR = TRUE,
+    iter = 4000,
+    chains = 4,
+    cores = 4,
+    seed = 123
+  )
 ```
 
-```{r}
+```{r eval=FALSE}
 broom::tidy(fit, intervals = TRUE, prob = 0.95) %>% 
   mutate(estimate = exp(estimate),
          lower = exp(lower),
@@ -229,31 +183,39 @@ The table above shows the incident rate ratios of the Bayesian NB regression, as
 Model comparison and diagnostics using `loo`
 --------------------------------------------
 
-```{r}
+```{r eval=FALSE}
 prop_zero <- function(y) mean(y == 0)
 pp_check(fit, plotfun = "stat", stat = "prop_zero")
 ```
 
-The above figure shows posterior predictive checks, which is a measure of the prediction accuracy. It compares the observed data to 100 replicated datasets generated from the posterior parameters distributions. For each simulated dataset, the proportion of zero crashes was computed, and the blue histograms shows the simulated distribution of the proportions. The black solid vertical lines are the observed proportion of zero crashes in observed data. When the observed proportion (black solid line) is near the center of the plot, it demonstrates good model fit.
+The code above will give a figure showing the posterior predictive checks, which is a measure of the prediction accuracy. It compares the observed data to 100 replicated datasets generated from the posterior parameters distributions. For each simulated dataset, the proportion of zero crashes was computed, and the blue histograms shows the simulated distribution of the proportions. The black solid vertical lines are the observed proportion of zero crashes in observed data. When the observed proportion (black solid line) is near the center of the plot, it demonstrates good model fit.
 
-```{r}
+```{r eval=FALSE}
 fit_loo = loo(fit)
 fit_loo
 ```
 
 The above block shows the expected log predicted density (`elpd_loo`), estimate number of parameters (`p_loo`), and the LOO Information Criterion (`looic`) for a new dataset from Pareto smoothed importance-sampling leave-one-out (PSIS-LOO) cross-validation (CV). They can be used to check the goodness-of-fit of and compare different models [@vehtari2017practical; @vehtari2015pareto]. In a well-specified model, `p_loo` should be close to the total number of parameters. Similar to the Akaike information criterion (AIC) and Bayesian information criterion (BIC), the `looic` in the output can be used to compare different models, with lower values indicating better models. 
 
-```{r}
-fit_new <- stan_glm(n_crash ~ sce_N + age + ping_speed,
-                    offset = log(distance/1000),
-                    data = stat[1:1000,], family = neg_binomial_2, 
-                    prior = normal(0,10), 
-                    prior_intercept = normal(0,10), QR = TRUE,
-                    iter = 1000, chains = 1, cores = 1, seed = 123)
+```{r eval=FALSE}
+fit_new <- stan_glm(
+  crash ~ SCE + speed + age + gender,
+  offset = log(distance / 1000),
+  data = data,
+  family = neg_binomial_2,
+  prior = normal(0, 10),
+  prior_intercept = normal(0, 10),
+  QR = TRUE,
+  iter = 4000,
+  chains = 4,
+  cores = 4,
+  seed = 123
+)
+
 fit_new_loo = loo(fit_new)
 ```
 
-```{r}
+```{r eval=FALSE}
 loo::compare(fit_loo, fit_new_loo)
 ```
 
